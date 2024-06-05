@@ -79,7 +79,7 @@ def convert_cue_to_utf8(cue_path):
     backup_path = cue_path.with_suffix('.cue.backup')
     cue_path.rename(backup_path)
     
-    # Detect encoding using chardet
+    # Detect encoding
     with open(backup_path, 'rb') as file:
         raw_data = file.read()
         result = chardet.detect(raw_data)
@@ -162,7 +162,7 @@ def process_directory(directory):
     """Process each directory for audio files and CUE files."""
     if sigint_received:
         return
-    path = Path(directory).resolve()  # 使用绝对路径
+    path = Path(directory).resolve()
     processing_file = path / '.processing'
 
     try:
@@ -221,9 +221,9 @@ def process_directory(directory):
 
 def traverse_directories(base_directory):
     """Walk through all subdirectories and process them recursively."""
-    base_directory = Path(base_directory).resolve()  # 使用绝对路径
+    base_directory = Path(base_directory).resolve()
     for root, dirs, files in os.walk(base_directory):
-        root_path = Path(root).resolve()  # 将当前目录转换为绝对路径
+        root_path = Path(root).resolve()
         if sigint_received:
             break
         try:
@@ -239,7 +239,7 @@ def traverse_directories(base_directory):
                 break
             try:
                 sub_dir = root_path / d
-                traverse_directories(sub_dir)  # 递归处理子目录
+                traverse_directories(sub_dir)
             except Exception as e:
                 logging.error(f"Error processing subdirectory {sub_dir}: {e}")
                 break  # Stop processing further directories on error
@@ -250,7 +250,7 @@ if __name__ == '__main__':
     if len(sys.argv) != 2:
         print("Usage: python split.py <directory>")
         sys.exit(1)
-    base_dir = Path(sys.argv[1]).resolve()  # 使用绝对路径
+    base_dir = Path(sys.argv[1]).resolve()
     logging.info(f"Starting traversal from base directory {base_dir}")
     
     try:
