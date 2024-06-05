@@ -70,6 +70,9 @@ def convert_cue_to_utf8(cue_path):
         raw_data = file.read()
         result = chardet.detect(raw_data)
         source_encoding = result['encoding']
+        # Treat all GB* encodings as GBK
+        if source_encoding and source_encoding.lower().startswith('gb'):
+            source_encoding = 'GBK'
         logging.info(f"Detected encoding: {source_encoding} for {cue_path}")
 
     # Convert file if encoding detected
@@ -156,13 +159,13 @@ def process_directory(directory):
     with change_directory(directory):
         try:
             subprocess.run(['sudo', 'split2flac', './', '-of', '(@track) [@performer] @title.@ext', '-F'], check=True)
+            # Handle size increase only if split2flac runs successfully
+            handle_size_increase(path, initial_size)
+            logging.info(f"Finished processing directory {directory}")
+            processing_file.unlink()  # Remove the .processing file only if everything succeeds
         except subprocess.CalledProcessError as e:
             logging.error(f"Error running split2flac in directory {directory}: {e}")
-
-    handle_size_increase(path, initial_size)
-
-    logging.info(f"Finished processing directory {directory}")
-    processing_file.unlink()  # Remove the .processing file
+            # Do not remove the .processing file if an error occurred
 
 def traverse_directories(base_directory):
     """Walk through all subdirectories and process them recursively."""
@@ -182,4 +185,3 @@ if __name__ == '__main__':
     logging.info(f"Starting traversal from base directory {base_dir}")
     traverse_directories(base_dir)
     logging.info("Completed traversal and processing.")
-  
