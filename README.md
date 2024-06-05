@@ -6,7 +6,7 @@ The script assumes the finished tracks in format ``` (@track) [@performer] @titl
 
 You can press ctrl+c to pause the splitting process and the script will automatically continue from where breaks next time.
 
-You need to have [split2flac](https://github.com/ftrvxmtrx/split2flac/) and its dependencies installed to run the script.
+You need to have [split2flac](https://github.com/yuygfgg/split2flac/) and its dependencies installed to run the script.
 
 
 
