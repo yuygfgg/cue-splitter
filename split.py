@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import chardet
 import logging
+import signal
 from contextlib import contextmanager
 
 # Configure logging
@@ -12,15 +13,27 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Supported audio file extensions
 audio_extensions = ['.flac', '.mp3', '.ogg', '.wav', '.aac', '.m4a', '.wma']
 
+# Global variable to track if a SIGINT has been received
+sigint_received = False
+
+class InterruptException(Exception):
+    pass
+
 @contextmanager
 def change_directory(directory):
     """Context manager for changing the working directory."""
-    original_directory = os.getcwd()
+    original_directory = Path.cwd().resolve()
     try:
         os.chdir(directory)
         yield
     finally:
         os.chdir(original_directory)
+
+def handle_sigint(signum, frame):
+    global sigint_received
+    sigint_received = True
+    logging.error("SIGINT received. Terminating the script.")
+    raise InterruptException("SIGINT received")
 
 def is_audio_file(file_path):
     """Check if the file has an audio file extension."""
@@ -62,6 +75,7 @@ def convert_to_cd_format(file_path):
 
 def convert_cue_to_utf8(cue_path):
     """Convert CUE file to UTF-8 encoding and backup the original."""
+    cue_path = cue_path.resolve()
     backup_path = cue_path.with_suffix('.cue.backup')
     cue_path.rename(backup_path)
     
@@ -92,6 +106,7 @@ def convert_cue_to_utf8(cue_path):
 
 def get_directory_size(directory):
     """Get the total size of all audio files in the directory."""
+    directory = Path(directory).resolve()
     total_size = 0
     for file in directory.glob('*'):
         if is_audio_file(file):
@@ -100,6 +115,7 @@ def get_directory_size(directory):
 
 def get_average_audio_file_size(directory):
     """Get the average size of audio files in the directory."""
+    directory = Path(directory).resolve()
     total_size = 0
     count = 0
     for file in directory.glob('*'):
@@ -108,80 +124,139 @@ def get_average_audio_file_size(directory):
             count += 1
     return total_size / count if count > 0 else 0
 
-def process_audio_files(path, audio_files):
+def process_audio_files(directory, audio_files):
     """Process and convert audio files in the directory."""
+    directory = Path(directory).resolve()
     for audio_file in audio_files:
+        audio_file = audio_file.resolve()
         convert_to_cd_format(audio_file)
 
-def delete_invalid_files(path):
+def delete_invalid_files(directory):
     """Delete files where the filename follows specific invalid patterns."""
-    for file in path.glob('*'):
+    directory = Path(directory).resolve()
+    for file in directory.glob('*'):
         name = file.name
         if (len(name) > 5 and name[0] == '(' and name[1].isdigit() and name[2].isdigit() and 
             name[3] == ')' and name[4] == ' ' and name[5] == '[') or \
            (len(name) > 6 and name[0].isdigit() and name[1].isdigit() and name[2:] == '.flac'):
-            file.unlink()
-            logging.info(f"Deleted file {file} due to invalid naming convention.")
+            logging.info(f"Deleting file {file} due to invalid naming convention.")
+            try:
+                file.unlink()
+                logging.info(f"Deleted file {file}")
+            except Exception as e:
+                logging.error(f"Error deleting file {file}: {e}")
 
-def handle_size_increase(path, initial_size):
+def handle_size_increase(directory, initial_size):
     """Handle the case where the directory size increases significantly."""
-    final_size = get_directory_size(path)
+    directory = Path(directory).resolve()
+    final_size = get_directory_size(directory)
+    logging.info(f"handle_size_increase in {directory} initial size = {initial_size} final_size = {final_size}")
     if final_size >= 1.5 * initial_size:
-        avg_size = get_average_audio_file_size(path)
-        for file in path.glob('*'):
+        avg_size = get_average_audio_file_size(directory)
+        for file in directory.glob('*'):
             if is_audio_file(file) and file.stat().st_size > avg_size and valid_filename(file):
                 file.unlink()
                 logging.info(f"Deleted file {file} due to exceeding average size.")
 
 def process_directory(directory):
     """Process each directory for audio files and CUE files."""
-    path = Path(directory)
+    if sigint_received:
+        return
+    path = Path(directory).resolve()  # 使用绝对路径
     processing_file = path / '.processing'
 
-    if processing_file.exists():
-        delete_invalid_files(path)
-    else:
-        audio_files = [f for f in path.glob('*') if is_audio_file(f) and valid_filename(f)]
-        if not audio_files:
-            logging.info(f"No valid audio files found in {directory}, skipping.")
-            return  # No valid audio files, skip this directory
+    try:
+        if processing_file.exists():
+            logging.info(f".processing file exists in {directory}. Deleting invalid files.")
+            delete_invalid_files(path)
+        else:
+            audio_files = [f for f in path.glob('*') if is_audio_file(f) and valid_filename(f)]
+            if not audio_files:
+                logging.info(f"No valid audio files found in {directory}, skipping.")
+                return  # No valid audio files, skip this directory
 
-        processing_file.touch()  # Create the .processing file if processing begins
-        logging.info(f"Started processing directory {directory}")
+            logging.info(f"Creating .processing file in {directory}")
+            processing_file.touch()  # Create the .processing file if processing begins
+            logging.info(f"Started processing directory {directory}")
 
-    for cue_file in path.glob('*.cue'):
-        convert_cue_to_utf8(cue_file)
+        for cue_file in path.glob('*.cue'):
+            logging.info(f"Converting CUE file {cue_file} to UTF-8")
+            convert_cue_to_utf8(cue_file)
 
-    audio_files = [f for f in path.glob('*') if is_audio_file(f)]
-    process_audio_files(path, audio_files)
+        audio_files = [f for f in path.glob('*') if is_audio_file(f)]
+        logging.info(f"Processing audio files in {directory}")
+        process_audio_files(path, audio_files)
 
-    initial_size = get_directory_size(path)
-    with change_directory(directory):
-        try:
-            subprocess.run(['sudo', 'split2flac', './', '-of', '(@track) [@performer] @title.@ext', '-F'], check=True)
-            # Handle size increase only if split2flac runs successfully
-            handle_size_increase(path, initial_size)
-            logging.info(f"Finished processing directory {directory}")
-            processing_file.unlink()  # Remove the .processing file only if everything succeeds
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Error running split2flac in directory {directory}: {e}")
-            # Do not remove the .processing file if an error occurred
+        initial_size = get_directory_size(path)
+        logging.info(f"Initial size of directory {directory}: {initial_size}")
+        with change_directory(directory):
+            try:
+                logging.info(f"Running split2flac in {directory}")
+                subprocess.run(['sudo', 'split2flac', './', '-of', '(@track) [@performer] @title.@ext', '-F'], check=True)
+                # Handle size increase only if split2flac runs successfully
+                handle_size_increase(path, initial_size)
+                logging.info(f"Finished processing directory {directory}")
+                if processing_file.exists() and not sigint_received:
+                    logging.info(f"Removing .processing file in {directory}")
+                    processing_file.unlink()  # Remove the .processing file only if everything succeeds
+            except subprocess.CalledProcessError as e:
+                logging.error(f"Error running split2flac in directory {directory}: {e}")
+                raise  # Re-raise the exception to ensure .processing file is not deleted
+            except KeyboardInterrupt:
+                logging.error(f"split2flac interrupted in directory {directory}")
+                raise InterruptException("split2flac interrupted by SIGINT")
+            except Exception as e:
+                logging.error(f"Unexpected error processing directory {directory}: {e}")
+                raise  # Re-raise the exception to ensure .processing file is not deleted
+    except InterruptException as e:
+        logging.error(f"Error in process_directory for {directory}: {e}")
+        raise  # Re-raise to ensure script stops
+    finally:
+        if not sigint_received and processing_file.exists():
+            try:
+                logging.info(f"Removing .processing file in finally block for {directory}")
+                processing_file.unlink()
+            except Exception as unlink_error:
+                logging.error(f"Error removing .processing file in finally block: {unlink_error}")
 
 def traverse_directories(base_directory):
     """Walk through all subdirectories and process them recursively."""
+    base_directory = Path(base_directory).resolve()  # 使用绝对路径
     for root, dirs, files in os.walk(base_directory):
+        root_path = Path(root).resolve()  # 将当前目录转换为绝对路径
+        if sigint_received:
+            break
         try:
-            process_directory(Path(root))
+            process_directory(root_path)
+        except InterruptException:
+            logging.info(f"InterruptException caught, stopping traversal.")
+            break
         except Exception as e:
-            logging.error(f"Error processing directory {root}: {e}")
+            logging.error(f"Error processing directory {root_path}: {e}")
+            break  # Stop processing further directories on error
         for d in dirs:
-            traverse_directories(Path(root) / d)  # Recursively process subdirectories
+            if sigint_received:
+                break
+            try:
+                sub_dir = root_path / d
+                traverse_directories(sub_dir)  # 递归处理子目录
+            except Exception as e:
+                logging.error(f"Error processing subdirectory {sub_dir}: {e}")
+                break  # Stop processing further directories on error
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, handle_sigint)
+    
     if len(sys.argv) != 2:
         print("Usage: python split.py <directory>")
         sys.exit(1)
-    base_dir = sys.argv[1]
+    base_dir = Path(sys.argv[1]).resolve()  # 使用绝对路径
     logging.info(f"Starting traversal from base directory {base_dir}")
-    traverse_directories(base_dir)
+    
+    try:
+        traverse_directories(base_dir)
+    except InterruptException:
+        logging.info("Script interrupted by SIGINT.")
+        sys.exit(1)
+    
     logging.info("Completed traversal and processing.")
