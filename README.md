@@ -8,3 +8,6 @@ You can press ctrl+c to pause the splitting process and the script will automati
 
 You need to have [split2flac](https://github.com/ftrvxmtrx/split2flac/) and its dependencies installed to run the script.
 
+
+
+<img width="1081" alt="截屏2024-06-05 08 30 23" src="https://github.com/yuygfgg/cue-splitter/assets/140488233/577ca4f1-4872-4428-b42b-488333000633">
