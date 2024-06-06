@@ -132,7 +132,7 @@ def process_audio_files(directory, audio_files):
         convert_to_cd_format(audio_file)
 
 def delete_invalid_files(directory):
-    """Delete intermediate file produced in last run when .processing file found."""
+    """Delete files where the filename follows specific invalid patterns."""
     directory = Path(directory).resolve()
     for file in directory.glob('*'):
         name = file.name
@@ -147,7 +147,7 @@ def delete_invalid_files(directory):
                 logging.error(f"Error deleting file {file}: {e}")
 
 def handle_size_increase(directory, initial_size):
-    """Handle the case where the directory size increases significantly, which means splitting succeed"""
+    """Handle the case where the directory size increases significantly."""
     directory = Path(directory).resolve()
     final_size = get_directory_size(directory)
     logging.info(f"handle_size_increase in {directory} initial size = {initial_size} final_size = {final_size}")
@@ -230,27 +230,27 @@ def traverse_directories(base_directory):
     """Walk through all subdirectories and process them recursively."""
     global sigint_received
     base_directory = Path(base_directory).resolve()
-    for root, dirs, files in os.walk(base_directory):
-        root_path = Path(root).resolve()
-        if sigint_received:
-            break
-        try:
-            process_directory(root_path)
-        except InterruptException:
-            logging.info(f"InterruptException caught, stopping traversal.")
-            break
-        except Exception as e:
-            logging.error(f"Error processing directory {root_path}: {e}")
-            break  # Stop processing further directories on error
-        for d in dirs:
+    folder_count = 0
+    try:
+        for root, dirs, files in os.walk(base_directory):
+            root_path = Path(root).resolve()
             if sigint_received:
                 break
+            if root_path.name.lower() in ['scans', 'scan']:
+                logging.info(f"Skipping directory {root_path} (name matches 'Scans' or 'scan')")
+                continue
             try:
-                sub_dir = root_path / d
-                traverse_directories(sub_dir)
+                process_directory(root_path)
+                folder_count += 1
+            except InterruptException:
+                logging.info(f"InterruptException caught, stopping traversal.")
+                break
             except Exception as e:
-                logging.error(f"Error processing subdirectory {sub_dir}: {e}")
+                logging.error(f"Error processing directory {root_path}: {e}")
                 break  # Stop processing further directories on error
+    except Exception as e:
+        logging.error(f"Error walking through base directory {base_directory}: {e}")
+    logging.info(f"Total directories processed: {folder_count}")
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, handle_sigint)
