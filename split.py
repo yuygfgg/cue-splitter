@@ -132,7 +132,7 @@ def process_audio_files(directory, audio_files):
         convert_to_cd_format(audio_file)
 
 def delete_invalid_files(directory):
-    """Delete files where the filename follows specific invalid patterns."""
+    """Delete intermediate file produced in last run when .processing file found."""
     directory = Path(directory).resolve()
     for file in directory.glob('*'):
         name = file.name
@@ -147,7 +147,7 @@ def delete_invalid_files(directory):
                 logging.error(f"Error deleting file {file}: {e}")
 
 def handle_size_increase(directory, initial_size):
-    """Handle the case where the directory size increases significantly."""
+    """Handle the case where the directory size increases significantly, which means splitting succeed"""
     directory = Path(directory).resolve()
     final_size = get_directory_size(directory)
     logging.info(f"handle_size_increase in {directory} initial size = {initial_size} final_size = {final_size}")
