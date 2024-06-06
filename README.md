@@ -8,7 +8,7 @@ You can press ctrl+c to pause the splitting process and the script will automati
 
 You need to have [split2flac](https://github.com/yuygfgg/split2flac/) and its dependencies installed to run the script.
 
-My modified version of split2flac is recommended because it supports album artist and unicode characters.
+The modified version of split2flac is recommended because it supports album artist and unicode characters.
 
 
 
