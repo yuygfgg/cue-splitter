@@ -6,6 +6,8 @@ The script assumes the finished tracks in format ``` (@track) [@performer] @titl
 
 You can press ctrl+c to pause the splitting process and the script will automatically continue from where breaks next time.
 
+**Warning: don't pause during a split2flac process in wrong folder, it will cause data loss in that folder. If you did, remove the .processing file in that folder before resume**
+
 You need to have [split2flac](https://github.com/yuygfgg/split2flac/) and its dependencies installed to run the script.
 
 The modified version of split2flac is recommended because it supports album artist and unicode characters.
