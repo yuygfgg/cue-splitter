@@ -11,7 +11,7 @@ from contextlib import contextmanager
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Supported audio file extensions
-audio_extensions = ['.flac', '.mp3', '.ogg', '.wav', '.aac', '.m4a', '.wma']
+audio_extensions = ['.flac', '.ape', '.mv', '.wav']
 
 # Global variable to track if a SIGINT has been received
 sigint_received = False
@@ -40,14 +40,9 @@ def is_audio_file(file_path):
     return file_path.suffix.lower() in audio_extensions
 
 def valid_filename(file_path):
-    """Check if the filename's second and third characters are not digits."""
-    name = file_path.stem
-    return len(name) > 2 and not (name[1].isdigit() and name[2].isdigit())
-
-def valid_filename(file_path):
     """Check filename based on two conditions:
     1. The second and third characters are not both digits and the length is greater than 2.
-    2. The first two characters are not digits and the length is greater than 7.
+    2. The first two characters are digits and the length is greater than 7.
     """
     name = file_path.stem
     condition1 = len(name) > 2 and not (name[1].isdigit() and name[2].isdigit())
@@ -217,7 +212,7 @@ def process_directory(directory):
                     raise InterruptException("split2flac interrupted by SIGINT")
                 else:
                     logging.error(f"Error running split2flac in directory {directory}: {e}")
-                    raise  # Re-raise the exception to ensure .processing file is not deleted
+    #                raise  # Re-raise the exception to ensure .processing file is not deleted
             except KeyboardInterrupt:
                 sigint_received = True
                 logging.error(f"split2flac interrupted in directory {directory}")
