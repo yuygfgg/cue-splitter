@@ -1,5 +1,5 @@
 # cue-splitter
-A python script aims to split massive cue+flac tracks
+A python script aims to split massive cue+flac tracks. Splitted tracks are saved in the same directory as raw cue&flac and original audio file is removed after double check.
 
 ## The script automatically handles: 
 
