@@ -6,9 +6,7 @@ import chardet
 import logging
 import signal
 from contextlib import contextmanager
-import os
 import shutil
-import logging
 from mutagen.flac import FLAC
 from datetime import datetime, timedelta
 
