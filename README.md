@@ -11,6 +11,8 @@ A python script splits massive cue+flac tracks. Splitted tracks are saved in the
 
 - check & remove original track
 
+- organize muiti disc album
+
 **Warning: don't pause during a split2flac process in wrong folder, it may cause data loss in that folder in some corner cases. If you did, remove the .processing file in that folder before resume.**
 
 ## Dependancies
