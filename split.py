@@ -25,8 +25,12 @@ DAYS_THRESHOLD = 15
 class InterruptException(Exception):
     pass
 
+def sanitize_folder_name(name):
+    return name.replace('/', '／')
+
 def create_new_folder_name(base_folder, album):
-    new_folder_name = f"{base_folder} {album}"
+    album_sanitized = sanitize_folder_name(album)
+    new_folder_name = f"{base_folder} {album_sanitized}"
     return new_folder_name
 
 def move_non_audio_files(src_folder, dst_folder):
