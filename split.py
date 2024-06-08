@@ -6,6 +6,12 @@ import chardet
 import logging
 import signal
 from contextlib import contextmanager
+import os
+import shutil
+import logging
+from mutagen.flac import FLAC
+from datetime import datetime, timedelta
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,8 +22,118 @@ audio_extensions = ['.flac', '.ape', '.mv', '.wav']
 # Global variable to track if a SIGINT has been received
 sigint_received = False
 
+DAYS_THRESHOLD = 15
+
 class InterruptException(Exception):
     pass
+
+def create_new_folder_name(base_folder, album):
+    new_folder_name = f"{base_folder} {album}"
+    return new_folder_name
+
+def move_non_audio_files(src_folder, dst_folder):
+    for item in os.listdir(src_folder):
+        item_path = os.path.join(src_folder, item)
+        item_path = os.path.abspath(item_path)
+        if os.path.isdir(item_path) and not any(f.endswith('.flac') for f in os.listdir(item_path)):
+            shutil.move(item_path, os.path.join(dst_folder, item))
+        elif not item_path.endswith('.flac'):
+            shutil.move(item_path, dst_folder)
+
+def process_folder(folder, base_folder_name):
+    folder = os.path.abspath(folder)
+    audio_files = []
+    for root, _, files in os.walk(folder):
+        root = os.path.abspath(root)
+        for file in files:
+            if file.endswith('.flac'):
+                audio_files.append(os.path.join(root, file))
+    
+    if not audio_files:
+        logging.info(f"No audio files found in folder: {folder}")
+        return
+
+    parent_folder = os.path.dirname(folder)
+
+    logging.info(f"Processing folder: {folder}")
+
+    for audio_file_path in audio_files:
+        audio_file_path = os.path.abspath(audio_file_path)
+        audio = FLAC(audio_file_path)
+        album = audio.get('album', ['Unknown Album'])[0]
+        new_folder_name = create_new_folder_name(base_folder_name, album)
+        new_folder_path = os.path.join(parent_folder, new_folder_name)
+        new_folder_path = os.path.abspath(new_folder_path)
+        os.makedirs(new_folder_path, exist_ok=True)
+        shutil.move(audio_file_path, new_folder_path)
+
+        logging.info(f"Moved audio file '{audio_file_path}' to '{new_folder_path}'")
+
+    move_non_audio_files(folder, new_folder_path)
+    shutil.rmtree(folder)
+    logging.info(f"Deleted original folder: {folder}")
+
+def is_valid_integer(value):
+    try:
+        int(value)
+        return True
+    except ValueError:
+        return False
+
+def scan_and_process(base_path):
+    base_path = os.path.abspath(base_path)
+    cutoff_time = datetime.now() - timedelta(days=DAYS_THRESHOLD)
+    for root, dirs, _ in os.walk(base_path):
+        root = os.path.abspath(root)
+        for dir_name in dirs:
+            folder_path = os.path.join(root, dir_name)
+            folder_path = os.path.abspath(folder_path)
+            
+            # Skip folders last modified more than DAYS_THRESHOLD days ago
+            if datetime.fromtimestamp(os.path.getmtime(folder_path)) < cutoff_time:
+                logging.info(f"Skipping folder '{folder_path}' because it was last modified more than {DAYS_THRESHOLD} days ago")
+                continue
+
+            if len(dir_name) >= 10 and dir_name[:10].replace('.', '').isdigit():
+                base_folder_name = dir_name[:10]  # Extract the base folder name (xxxx.xx.xx)
+                skip_folder = False
+
+                logging.info(f"Scanning folder: {folder_path}")
+
+                albums = set()
+                for subdir, _, files in os.walk(folder_path):
+                    subdir = os.path.abspath(subdir)
+                    for file in files:
+                        if file.endswith('.flac'):
+                            file_path = os.path.join(subdir, file)
+                            file_path = os.path.abspath(file_path)
+                            audio = FLAC(file_path)
+                            total_discs = audio.get('totaldiscs', [1])[0]
+                            disc_number = audio.get('discnumber', [1])[0]
+                            album = audio.get('album', ['Unknown Album'])[0]
+                            albums.add(album)
+                            
+                            # Ensure 'totaldiscs' and 'discnumber' are valid integers
+                            if not (is_valid_integer(total_discs) and is_valid_integer(disc_number)):
+                                continue
+                            
+                            total_discs = int(total_discs)
+                            disc_number = int(disc_number)
+                            
+                            if total_discs > 1 or disc_number > 1:
+                                skip_folder = True
+                                logging.info(f"Skipping folder '{folder_path}' due to multiple discs")
+                                break
+                    if skip_folder:
+                        break
+
+                if len(albums) == 1:
+                    logging.info(f"Skipping folder '{folder_path}' since all audio files have the same album tag")
+                    continue
+
+                if not skip_folder:
+                    process_folder(folder_path, base_folder_name)
+
 
 @contextmanager
 def change_directory(directory):
@@ -212,7 +328,6 @@ def process_directory(directory):
                     raise InterruptException("split2flac interrupted by SIGINT")
                 else:
                     logging.error(f"Error running split2flac in directory {directory}: {e}")
-    #                raise  # Re-raise the exception to ensure .processing file is not deleted
             except KeyboardInterrupt:
                 sigint_received = True
                 logging.error(f"split2flac interrupted in directory {directory}")
@@ -273,3 +388,8 @@ if __name__ == '__main__':
         sys.exit(1)
     
     logging.info("Completed traversal and processing.")
+    if sigint_received:
+        sys.exit(1)
+    logging.info(f"Starting scan in base path: {base_dir}")
+    scan_and_process(base_dir)
+    logging.info("Scan and process completed.")
