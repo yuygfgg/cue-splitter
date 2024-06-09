@@ -22,6 +22,7 @@ audio_extensions = ['.flac', '.ape', '.mv', '.wav']
 # Global variable to track if a SIGINT has been received
 sigint_received = False
 
+# Assume splitting finishes in 5 days
 DAYS_THRESHOLD = 5
 
 class InterruptException(Exception):
