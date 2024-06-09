@@ -27,6 +27,8 @@ The script transcode every splitted track to CD quality flac because shnsplit, w
 
 - chardet
 
+- mutagen
+
 The modified version of split2flac is recommended because it supports album artist and unicode characters.
 
 
