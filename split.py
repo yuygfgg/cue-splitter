@@ -6,7 +6,9 @@ import chardet
 import logging
 import signal
 from contextlib import contextmanager
+import os
 import shutil
+import logging
 from mutagen.flac import FLAC
 from datetime import datetime, timedelta
 
@@ -20,17 +22,13 @@ audio_extensions = ['.flac', '.ape', '.mv', '.wav']
 # Global variable to track if a SIGINT has been received
 sigint_received = False
 
-DAYS_THRESHOLD = 15
+DAYS_THRESHOLD = 5
 
 class InterruptException(Exception):
     pass
 
-def sanitize_folder_name(name):
-    return name.replace('/', '／')
-
 def create_new_folder_name(base_folder, album):
-    album_sanitized = sanitize_folder_name(album)
-    new_folder_name = f"{base_folder} {album_sanitized}"
+    new_folder_name = f"{base_folder} {album}"
     return new_folder_name
 
 def move_non_audio_files(src_folder, dst_folder):
@@ -67,11 +65,16 @@ def process_folder(folder, base_folder_name):
         new_folder_path = os.path.join(parent_folder, new_folder_name)
         new_folder_path = os.path.abspath(new_folder_path)
         os.makedirs(new_folder_path, exist_ok=True)
-        shutil.move(audio_file_path, new_folder_path)
+        try:
+            shutil.move(audio_file_path, new_folder_path)
+            logging.info(f"Moved audio file '{audio_file_path}' to '{new_folder_path}'")
+        except ValueError as e:
+            logging.error(f"fail to move audio file! {e}")
 
-        logging.info(f"Moved audio file '{audio_file_path}' to '{new_folder_path}'")
-
-    move_non_audio_files(folder, new_folder_path)
+    try:
+        move_non_audio_files(folder, new_folder_path)
+    except ValueError as e:
+            logging.error(f"fail to move non-audio file! {e}")
     shutil.rmtree(folder)
     logging.info(f"Deleted original folder: {folder}")
 
@@ -82,7 +85,7 @@ def is_valid_integer(value):
     except ValueError:
         return False
 
-def scan_and_process(base_path):
+def scan_and_process_multi_disc_album(base_path):
     base_path = os.path.abspath(base_path)
     cutoff_time = datetime.now() - timedelta(days=DAYS_THRESHOLD)
     for root, dirs, _ in os.walk(base_path):
@@ -124,7 +127,7 @@ def scan_and_process(base_path):
                             
                             if total_discs > 1 or disc_number > 1:
                                 skip_folder = True
-                                logging.info(f"Skipping folder '{folder_path}' due to multiple discs")
+                                logging.info(f"Skipping folder '{folder_path}' due to multiple discs set properly")
                                 break
                     if skip_folder:
                         break
@@ -392,6 +395,6 @@ if __name__ == '__main__':
     logging.info("Completed traversal and processing.")
     if sigint_received:
         sys.exit(1)
-    logging.info(f"Starting scan in base path: {base_dir}")
-    scan_and_process(base_dir)
+    logging.info(f"Starting scan and process multi-disc album in base path: {base_dir}")
+    scan_and_process_multi_disc_album(base_dir)
     logging.info("Scan and process completed.")
