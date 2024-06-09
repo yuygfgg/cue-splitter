@@ -1,6 +1,8 @@
 # cue-splitter
 A python script splits massive cue+flac tracks. Splitted tracks are saved in the same directory as raw cue&flac and original audio file is removed after double check.
 
+**Tested on 4.4TB mixed files, including 1398 unsplitted flacs**
+
 The script transcode every splitted track to CD quality flac because shnsplit, which hasn't updated for over 15 years, do not support splitting higher quality tracks with one-second accuracy cues, while almost none cue file uses milisecond accuracy.
 
 ## The script automatically handles: 
