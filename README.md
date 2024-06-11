@@ -18,6 +18,7 @@ The script transcode every splitted track to CD quality flac because shnsplit, w
 - tag muiti disc album
 
 ~~- separate mixed album in the same folder(e.g. instrument), which is essential for jellyfin mediaserver~~ (need enable manually in script code)
+
 **Warning: don't pause during a split2flac process in wrong folder, it may cause data loss in that folder in some corner cases. If you did, remove the .processing file in that folder before resume.**
 
 ## Dependancies
