@@ -15,7 +15,7 @@ The script transcode every splitted track to CD quality flac because shnsplit, w
 
 - check & remove original track
 
-- organize muiti disc album
+- tag muiti disc album
 
 **Warning: don't pause during a split2flac process in wrong folder, it may cause data loss in that folder in some corner cases. If you did, remove the .processing file in that folder before resume.**
 
