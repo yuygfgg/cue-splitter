@@ -11,6 +11,7 @@ import shutil
 import logging
 from mutagen.flac import FLAC
 from datetime import datetime, timedelta
+import re
 
 
 # Configure logging
@@ -27,6 +28,63 @@ DAYS_THRESHOLD = 5
 
 class InterruptException(Exception):
     pass
+
+DATE_PATTERN = re.compile(r'^\d{4}\.\d{2}\.\d{2}')
+DISC_PATTERN = re.compile(r'disc\s*(\d+)', re.IGNORECASE)
+
+def set_tags(file_path, album, disc_number, disc_total):
+    audio = FLAC(file_path)
+    audio['ALBUM'] = album
+    audio['DISCNUMBER'] = str(disc_number)
+    audio['DISCTOTAL'] = str(disc_total)
+    audio.save()
+
+def process_muity_disc_album(directory):
+    disc_numbers = []
+    flac_files = []
+    original_albums = set()
+
+    # Collect all FLAC files and their disc numbers
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if file.lower().endswith('.flac'):
+                file_path = os.path.join(root, file)
+                audio = FLAC(file_path)
+                album = audio.get('ALBUM', [None])[0]
+                if album:
+                    original_albums.add(album)
+                    match = DISC_PATTERN.search(album)
+                    if match:
+                        disc_number = int(match.group(1))
+                        disc_numbers.append(disc_number)
+                        flac_files.append((file_path, disc_number, album))
+
+    if not flac_files:
+        return
+
+    # Determine the new album name after removing "disc n"
+    new_albums = {DISC_PATTERN.sub('', album).strip() for _, _, album in flac_files}
+
+    if len(new_albums) > 1:
+        print(f"Albums do not match after removing 'disc n'. Found:\n{new_albums}")
+        correct_album = input("Please enter the correct album name (or press Enter to skip this directory): ").strip()
+        if not correct_album:
+            return
+    else:
+        correct_album = new_albums.pop()
+
+    disc_total = max(disc_numbers)
+
+    # Update tags for each FLAC file
+    for file_path, disc_number, _ in flac_files:
+        set_tags(file_path, correct_album, disc_number, disc_total)
+
+def process_muity_disc_albums(base_directory):
+    for root, dirs, _ in os.walk(base_directory):
+        for dir in dirs:
+            if DATE_PATTERN.match(dir):
+                process_muity_disc_album(os.path.join(root, dir))
+
 
 def create_new_folder_name(base_folder, album):
     new_folder_name = f"{base_folder} {album}"
@@ -86,7 +144,7 @@ def is_valid_integer(value):
     except ValueError:
         return False
 
-def scan_and_process_multi_disc_album(base_path):
+def scan_and_process_mixed_album(base_path):
     base_path = os.path.abspath(base_path)
     cutoff_time = datetime.now() - timedelta(days=DAYS_THRESHOLD)
     for root, dirs, _ in os.walk(base_path):
@@ -396,6 +454,10 @@ if __name__ == '__main__':
     logging.info("Completed traversal and processing.")
     if sigint_received:
         sys.exit(1)
-    logging.info(f"Starting scan and process multi-disc album in base path: {base_dir}")
-    scan_and_process_multi_disc_album(base_dir)
+    logging.info(f"Starting scan and process muili-disc album in base path: {base_dir}")
+    process_muity_disc_albums(base_dir)
+    if sigint_received:
+        sys.exit(1)
+    logging.info(f"Starting scan and process mixed album in base path: {base_dir}")
+    scan_and_process_mixed_album(base_dir)
     logging.info("Scan and process completed.")
