@@ -95,9 +95,9 @@ def move_non_audio_files(src_folder, dst_folder):
         item_path = os.path.join(src_folder, item)
         item_path = os.path.abspath(item_path)
         if os.path.isdir(item_path) and not any(f.endswith('.flac') for f in os.listdir(item_path)):
-            shutil.move(item_path, os.path.join(dst_folder, item))
+            shutil.copytree(item_path, os.path.join(dst_folder, item))
         elif not item_path.endswith('.flac'):
-            shutil.move(item_path, dst_folder)
+            shutil.copytree(item_path, dst_folder)
 
 def process_folder(folder, base_folder_name):
     folder = os.path.abspath(folder)
