@@ -18,7 +18,7 @@ import re
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Supported audio file extensions
-audio_extensions = ['.flac', '.ape', '.mv', '.wav']
+audio_extensions = ['.flac', '.ape', '.wv', '.wav']
 
 # Global variable to track if a SIGINT has been received
 sigint_received = False
@@ -458,7 +458,7 @@ if __name__ == '__main__':
     process_muity_disc_albums(base_dir)
     if sigint_received:
         sys.exit(1)
-#The following line will create a separated folder for each album and copy non-audio files to each new folder. It may take a lot of extra disk space. Remove # if you need.
+#The following line will create a separated folder for each album and copy non-audio files to each new folder. It may take a lot of extra disk space and not fully tested. Remove # if you need.
 #    logging.info(f"Starting scan and process mixed album in base path: {base_dir}")
 #    scan_and_process_mixed_album(base_dir)
     logging.info("Scan and process completed.")
