@@ -378,7 +378,7 @@ def process_directory(directory):
         with change_directory(directory):
             try:
                 logging.info(f"Running split2flac in {directory}")
-                subprocess.run(['sudo', 'split2flac', './', '-of', '(@track) [@performer] @title.@ext', '-nC', '-F'], check=True)
+                subprocess.run(['split2flac', './', '-of', '(@track) [@performer] @title.@ext', '-nC', '-F'], check=True)
                 # Handle size increase only if split2flac runs successfully
                 handle_size_increase(path, initial_size)
                 logging.info(f"Finished processing directory {directory}")
