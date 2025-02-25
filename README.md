@@ -14,6 +14,16 @@ The script transcode every splitted track to CD quality flac because shnsplit, w
 
 - tag muiti-disc albums
 
+## Usage (Docker)
+```
+alias cue-splitter='docker run -v "$(pwd)":/workdir -e PUID=$(id -u) -e PGID=$(id -g) -it --rm gekowa/cue-splitter'
+```
+Then, 
+```
+cd music-dir
+cue-splitter
+```
+
 ## Dependancies
 
 - [split2flac](https://github.com/yuygfgg/split2flac/) and its dependencies (The modified version of split2flac is recommended because it supports album artist and unicode characters.)
