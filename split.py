@@ -18,7 +18,7 @@ import re
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Supported audio file extensions
-audio_extensions = ['.flac', '.ape', '.wv', '.wav']
+audio_extensions = ['.flac', '.ape', '.wv', '.wav', '.ape']
 
 # Global variable to track if a SIGINT has been received
 sigint_received = False
@@ -222,11 +222,11 @@ def is_audio_file(file_path):
 def valid_filename(file_path):
     """Check filename based on two conditions:
     1. The second and third characters are not both digits and the length is greater than 2.
-    2. The first two characters are not digits and the length is greater than 7.
+    2. The first two characters are not digits and the length is GTE than 7.
     """
     name = file_path.stem
     condition1 = len(name) > 2 and not (name[1].isdigit() and name[2].isdigit())
-    condition2 = len(name) > 7 and not (name[0].isdigit() and name[1].isdigit())
+    condition2 = len(name) >= 7 and not (name[0].isdigit() and name[1].isdigit())
     return condition1 and condition2
 
 def check_audio_format(file_path):
